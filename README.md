@@ -17,11 +17,11 @@ These steps will help you create the ADSB data csv similar to the format of the 
 Once you have the ADSB data csv, you can move on to generating the aircraft visualization and DT CSV data.
 
 1. Ensure that these files are all in the same directory: KGSO_ATIS 2_reformatted_with_final_times_VID.csv, KGSO_Approach_Departure 2_reformatted_with_final_times_VID.csv, KGSO_TOWER 2_reformatted_with_final_times_VID.csv, synthetic.json, ATC_SIM_v_main.ipynb, and your ADSB CSV.
-2. In the "ATC_SIM_v_main.ipynb" python file, locate the transcription file list and adjust the files paths based on your own directory: transcription_files = [
+2. In the "ATC_SIM_v_main.ipynb" python file, locate the transcription file list and adjust the files paths based on your own directory: transcription_files = <u>[
         '/Users/naimbaker/Documents/ATC/new_freq_filesWAV2TXT - KGSO_ATIS 2_reformatted_with_final_times_VID.csv',
         '/Users/naimbaker/Documents/ATC/new_freq_filesWAV2TXT - KGSO_Approach_Departure 2_reformatted_with_final_times_VID.csv',
         '/Users/naimbaker/Documents/ATC/new_freq_filesWAV2TXT - KGSO_TOWER 2_reformatted_with_final_times_VID.csv'
-    ]
+    ]</u>
 3. Locate the "csv_file" variable a few lines below the transcription file list and adjust it to the path of your ADSB CSV.
 4. Locate the "output_path" variable and adjust to the directory you are working in.
 5. Create a folder called "ATC Aircraft Maps" in the same directory.
