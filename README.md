@@ -22,7 +22,7 @@ Once you have the ADSB data csv, you can move on to generating the aircraft visu
         '/Users/naimbaker/Documents/ATC/new_freq_filesWAV2TXT - KGSO_Approach_Departure 2_reformatted_with_final_times_VID.csv',
         '/Users/naimbaker/Documents/ATC/new_freq_filesWAV2TXT - KGSO_TOWER 2_reformatted_with_final_times_VID.csv'
     ]</u>
-3. Locate the "csv_file" variable a few lines below the transcription file list and adjust it to the path of your ADSB CSV.
+3. Locate the "csv_file" variable<u> a few lines below the transcription file list and </u>adjust it to the path of your ADSB CSV.
 4. Locate the "output_path" variable and adjust to the directory you are working in.
 5. Create a folder called "ATC Aircraft Maps" in the same directory.
 
