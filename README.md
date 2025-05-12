@@ -50,13 +50,17 @@ Here is a command listing the necessary packages for installation:
 
 In order to create your DT csv file, you will need to first create an ADSB csv file to extract data from.
 
-1. "readsb-hist" is an online histoircal data source that is used to extract a full CSV containing ATC data from multiple dates and times. The objective of the "kgso_extractor_v13.py" script is to extract specific date and time segments of this CSV, creating the ADSB data generated in this step. We will be extracting from the "aircraft_near_KGSO.csv" file located in this github.
+1. "readsb-hist" is an online histoircal data source that is used to extract a full CSV containing ATC data from multiple dates and times. The objective of the "kgso_extractor_v13.py" script is to extract specific date and time segments of this CSV, creating the ADSB data generated in this step.
+
+2. Follow this link the "readsb-hist" data source: https://samples.adsbexchange.com/
+
+3. Download the "readsb-hist" folder and store it in your project folder.
+  
+4.  We will be extracting from this folder to create the "aircraft_near_KGSO.csv" file located in this github. Adjust your "csv_path" variable in the "kgso_extractor_v13.py" code to direct to the location that you saved the "readsb-hist" to.
    
-2. Ensure that the "aircraft_near_KGSO.csv" file is in the same directory as your python file, "kgso_extractor_v13.py".
+5. Once you run your code, "aircraft_near_KGSO.csv" should show up in your folder. Ensure that the file is in the same directory as your python file, "kgso_extractor_v13.py".
 
-3. In the python file, adjust the "csv_path" variable and the "csv_filename" accordingly to your personal directory and file name of the "adsb_hist_06_01_24_cleaned.csv".
-
-4. Locate this line: "url = f"https://samples.adsbexchange.com/readsb-hist/2024/06/01/{time_str}.json.gz"" at the bottom of the kgso_extractor_v13 python file and adjust the date in the URL to your desired date for extraction.
+6. Locate this line: "url = f"https://samples.adsbexchange.com/readsb-hist/2024/06/01/{time_str}.json.gz"" at the bottom of the kgso_extractor_v13 python file and adjust the date in the URL to your desired date for extraction.
 
 These steps will help you create the ADSB data csv similar to the format of the "adsb_hist_06_01_24_cleaned.csv" shown in this repo.
 
