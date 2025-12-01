@@ -24,19 +24,19 @@ coord_tracker = {} # Tracks the current aircraft coordinates to calculate direct
 direction_tracker = {} # Tracks the current aircraft coordinates to plot direction
 first_appearance_flights = []
 
-json_file_path = 'synthetic.json'
+# json_file_path = 'synthetic.json'
 
-with open(json_file_path, 'r') as file:
-        syn_data = json.load(file)
+# with open(json_file_path, 'r') as file:
+#         syn_data = json.load(file)
 
-        synth_locations = []
+#         synth_locations = []
 
-        # print(syn_data)
+#         # print(syn_data)
 
-        for aircraft in syn_data['aircraft']:
-            synth_locations.append(aircraft['Location'])
+#         for aircraft in syn_data['aircraft']:
+#             synth_locations.append(aircraft['Location'])
 
-        synth_locations = [coord_pair for sublist in synth_locations for coord_pair in sublist]
+#         synth_locations = [coord_pair for sublist in synth_locations for coord_pair in sublist]
 
 class Airplane:
     def __init__(self, data):
@@ -286,6 +286,12 @@ def add_time_offset(filename_time_delta, transcription_time_str):
     new_time = transcription_time + filename_time_delta
     return new_time.strftime('%H:%M:%S')
 
+# def get_manual_transcriptions(current_time_str):
+#     file_path = '/Users/naimbaker/Documents/ATC/Merged Transcriptions/merged_transcriptions_ATIS.csv'
+#     df = pd.read_csv(file_path)
+#     column_data = df['Start'].iloc[0]
+
+#     return current_time_str
 
 def get_traveled_distance(coord1, coord2):
     lat1, long1 = coord1
@@ -421,9 +427,9 @@ def plot_coordinates(coordinates, flight_numbers, status, center, current_flight
     prev = None
     global current_point
 
-    print("SYNTH_LOC:" , synth_locations)
+    # print("SYNTH_LOC:" , synth_locations)
 
-    synth_point = synth_locations[current_point]
+    # synth_point = synth_locations[current_point]
     current_point += 1
 
     print("COORDINATES:" , coordinates)
@@ -434,12 +440,12 @@ def plot_coordinates(coordinates, flight_numbers, status, center, current_flight
         crs="EPSG:4326"
     )
 
-    gdf2 = gpd.GeoDataFrame(
-        geometry=[Point(synth_point[1], synth_point[0])],
-        crs="EPSG:4326"
-    )
+    # gdf2 = gpd.GeoDataFrame(
+    #     geometry=[Point(synth_point[1], synth_point[0])],
+    #     crs="EPSG:4326"
+    # )
 
-    print("SYNTH_POINT:" , synth_point)
+    # print("SYNTH_POINT:" , synth_point)
 
     if len(coordinates) == 1:
         flight = flight_numbers[0]
@@ -466,7 +472,7 @@ def plot_coordinates(coordinates, flight_numbers, status, center, current_flight
     print(status)
     
     gdf = gdf.to_crs(epsg=3857)
-    gdf2 = gdf2.to_crs(epsg=3857)
+    # gdf2 = gdf2.to_crs(epsg=3857)
 
     length = 1  
     angle_rad = np.radians(40)
@@ -482,7 +488,7 @@ def plot_coordinates(coordinates, flight_numbers, status, center, current_flight
 
     fig, ax = plt.subplots(figsize=(10, 6))
     gdf.plot(ax=ax, color='blue', alpha=1, edgecolor='w', markersize=50)
-    gdf2.plot(ax=ax, color='red', alpha=1, edgecolor='w', markersize=50)
+    # gdf2.plot(ax=ax, color='red', alpha=1, edgecolor='w', markersize=50)
     gdf_line.plot(ax=ax, color='#ff5c3a', linewidth=2, linestyle='--')
 
     ax.set_xlim(xlim)
@@ -492,7 +498,7 @@ def plot_coordinates(coordinates, flight_numbers, status, center, current_flight
     ctx.add_basemap(ax, source=ctx.providers.OpenStreetMap.Mapnik, zoom=basemap_zoom)
     
     airplane_icon = mpimg.imread("airplane.webp")
-    synth_airplane_icon = mpimg.imread("synthetic_plane.png")
+    # synth_airplane_icon = mpimg.imread("synthetic_plane.png")
 
     for i, row in gdf.iterrows():
         dir_angle = (direction[i]) if (i < len(direction)) and direction[i] is not None else 0
@@ -503,49 +509,21 @@ def plot_coordinates(coordinates, flight_numbers, status, center, current_flight
         ab = AnnotationBbox(imagebox, (row.geometry.x, row.geometry.y), frameon=False)
         ax.add_artist(ab)
 
-    synth_x, synth_y = gdf2.geometry.x.iloc[0], gdf2.geometry.y.iloc[0]
+    # synth_x, synth_y = gdf2.geometry.x.iloc[0], gdf2.geometry.y.iloc[0]
 
-    if current_point != 0:
-        synth_angle = convert_direction(get_traveled_distance(synth_locations[current_point - 1], synth_locations[current_point])) + 180
-        print("CURRENT SYNTHETIC COORDS:" , [synth_locations[current_point - 1], synth_locations[current_point]])
-        print("CURRENT SYNTHETIC ANGLE:" , synth_angle)
-    else:
-        synth_angle = 180
-    
-    rotated_synth_airplane = rotate(synth_airplane_icon, synth_angle, reshape=True)
-
-    synth_imagebox = OffsetImage(rotated_synth_airplane, zoom=0.05)
-    synth_ab = AnnotationBbox(synth_imagebox, (synth_x, synth_y), frameon=False)
-
-    ax.add_artist(synth_ab)
-
-    # for i, row in gdf.iterrows():
-    #     angle_new = (direction[i] + 180) if i < len(direction) and direction[i] is not None else 0
-    #     rotated_airplane_new = rotate(mirrored_airplane_icon, angle_new, reshape=True)
-    #     imagebox_new = OffsetImage(rotated_airplane_new, zoom=0.05)
-    #     ab_new = AnnotationBbox(imagebox_new, (-row.geometry.x + 2 * center_point.x, -row.geometry.y + 2 * center_point.y), frameon=False)
-    #     ax.add_artist(ab_new)
-
-    # if isinstance(status, list):
-    #     for d in status:
-    #         for value in d.values():
-    #             if value == "Unknown":
-    #                 print("yes")
-    #                 for i, row in gdf.iterrows():
-    #                     angle_new = (direction[i] + 180) if i < len(direction) and direction[i] is not None else 0
-    #                     rotated_airplane_new = rotate(mirrored_airplane_icon, angle_new, reshape=True)
-    #                     imagebox_new = OffsetImage(rotated_airplane_new, zoom=0.05)
-    #                     ab_new = AnnotationBbox(imagebox_new, (-row.geometry.x + 2 * center_point.x, -row.geometry.y + 2 * center_point.y), frameon=False)
-    #                     ax.add_artist(ab_new)
+    # if current_point != 0:
+    #     synth_angle = convert_direction(get_traveled_distance(synth_locations[current_point - 1], synth_locations[current_point])) + 180
+    #     print("CURRENT SYNTHETIC COORDS:" , [synth_locations[current_point - 1], synth_locations[current_point]])
+    #     print("CURRENT SYNTHETIC ANGLE:" , synth_angle)
     # else:
-    #     if status != None and next(iter(status.values())) == "Unknown":
-    #         print("yes")
-    #         for i, row in gdf.iterrows():
-    #             angle_new = (direction[i] + 180) if i < len(direction) and direction[i] is not None else 0
-    #             rotated_airplane_new = rotate(mirrored_airplane_icon, angle_new, reshape=True)
-    #             imagebox_new = OffsetImage(rotated_airplane_new, zoom=0.05)
-    #             ab_new = AnnotationBbox(imagebox_new, (-row.geometry.x + 2 * center_point.x, -row.geometry.y + 2 * center_point.y), frameon=False)
-    #             ax.add_artist(ab_new)
+    #     synth_angle = 180
+    
+    # rotated_synth_airplane = rotate(synth_airplane_icon, synth_angle, reshape=True)
+
+    # synth_imagebox = OffsetImage(rotated_synth_airplane, zoom=0.05)
+    # synth_ab = AnnotationBbox(synth_imagebox, (synth_x, synth_y), frameon=False)
+
+    # ax.add_artist(synth_ab)
     
     ax.set_xlabel('Longitude')
     ax.set_ylabel('Latitude')
@@ -598,6 +576,7 @@ def write_snapshot_to_csv(airplanes, filename, output_path, transcriptions, inte
                 'Status Count': [],
                 'Airspace Status': [],
                 'Traveled_Direction(degrees)': [],
+                'ATIS Manual Transcription':[],
                 'ATIS Transcription Start': [],
                 'ATIS Transcription End': [],
                 'ATIS Transcription Final_Start': [],
@@ -671,7 +650,7 @@ def write_snapshot_to_csv(airplanes, filename, output_path, transcriptions, inte
     with open(os.path.join(output_path, filename), 'w', newline='') as file:
         writer = csv.writer(file, quotechar='"', quoting=csv.QUOTE_MINIMAL)
         headers = [
-            'DT Time', 'Aircraft(Obj)', 'debug 1', 'debug 2', 'debug 3', 'First_Appearance', 'Status Count', 'Airspace Status', 'Traveled_Direction(degrees)', 'ATIS Transcription Start', 'ATIS Transcription End',
+            'DT Time', 'Aircraft(Obj)', 'debug 1', 'debug 2', 'debug 3', 'First_Appearance', 'Status Count', 'Airspace Status', 'Traveled_Direction(degrees)', 'ATIS Manual Transcription', 'ATIS Transcription Start', 'ATIS Transcription End',
             'ATIS Transcription Final_Start', 'ATIS Transcription Final_End', 'ATIS Transcription_id', 'ATIS Transcription Text',
             'Approach/Departure Transcription Start', 'Approach/Departure Transcription End',
             'Approach/Departure Final_Start', 'Approach/Departure Final_End', 'Approach/Departure Transcription_id', 'Approach/Departure Transcription Text',
@@ -681,7 +660,7 @@ def write_snapshot_to_csv(airplanes, filename, output_path, transcriptions, inte
         writer.writerow(headers)
 
         previous_transcriptions = {
-            'Aircraft(Obj)': '[]', 'debug 1': 'None', 'debug 2': 'None', 'debug 3': 'None', 'First_Appearance' : 'None', 'Status Count': 'None', 'Airspace Status': 'None', 'Traveled_Direction(degrees)': 'None', 'ATIS Transcription Start': 'None', 'ATIS Transcription End': 'None',
+            'Aircraft(Obj)': '[]', 'debug 1': 'None', 'debug 2': 'None', 'debug 3': 'None', 'First_Appearance' : 'None', 'Status Count': 'None', 'Airspace Status': 'None', 'Traveled_Direction(degrees)': 'None', 'ATIS Manual Transcription': 'None', 'ATIS Transcription Start': 'None', 'ATIS Transcription End': 'None',
             'ATIS Transcription Final_Start': 'None', 'ATIS Transcription Final_End': 'None', 'ATIS Transcription_id': 'None', 'ATIS Transcription Text': 'None',
             'Approach/Departure Transcription Start': 'None', 'Approach/Departure Transcription End': 'None',
             'Approach/Departure Final_Start': 'None', 'Approach/Departure Final_End': 'None', 'Approach/Departure Transcription_id': 'None',
@@ -715,17 +694,17 @@ def write_snapshot_to_csv(airplanes, filename, output_path, transcriptions, inte
                 current_flight_time = data['DT Time']
                 center_point = (36.1029, -79.9335)  # Greensboro Airport
 
-                json_file_path = 'synthetic.json'
+                # json_file_path = 'synthetic.json'
 
-                with open(json_file_path, 'r') as file:
-                    syn_data = json.load(file)
+                # with open(json_file_path, 'r') as file:
+                #     syn_data = json.load(file)
 
                 synth_locations = []
 
-                for aircraft in syn_data['aircraft']:
-                    synth_locations.append(aircraft['Location'])
+                # for aircraft in syn_data['aircraft']:
+                #     synth_locations.append(aircraft['Location'])
 
-                synth_locations = synth_locations[0] # Synthetic planes
+                # synth_locations = synth_locations[0] # Synthetic planes
 
                 op_file_path = 'KGSO_operations_output.csv'
 
@@ -780,6 +759,7 @@ def write_snapshot_to_csv(airplanes, filename, output_path, transcriptions, inte
                     status_count([{key: entry[key] for key in ['Flight Number'] if key in entry} for entry in data['Aircraft(Obj)']], [{key: entry[key] for key in ['Airspace Status'] if key in entry} for entry in data['Aircraft(Obj)']]),
                     get_status([{key: entry[key] for key in ['Flight Number'] if key in entry} for entry in data['Aircraft(Obj)']], [{key: entry[key] for key in ['Airspace Status'] if key in entry} for entry in data['Aircraft(Obj)']]),
                     get_direction([[entry['Latitude'], entry['Longitude']] for entry in data['Aircraft(Obj)'] if 'Latitude' in entry and 'Longitude' in entry], [{key: entry[key] for key in ['Flight Number'] if key in entry} for entry in data['Aircraft(Obj)']]),
+                    # get_manual_transcriptions(data['DT Time']),
                     ', '.join(data['ATIS Transcription Start']) if data['ATIS Transcription Start'] else 'None',
                     ', '.join(data['ATIS Transcription End']) if data['ATIS Transcription End'] else 'None',
                     ', '.join(data['ATIS Transcription Final_Start']) if data['ATIS Transcription Final_Start'] else 'None',
@@ -797,8 +777,8 @@ def write_snapshot_to_csv(airplanes, filename, output_path, transcriptions, inte
                     ', '.join(data['TOWER Final_Start']) if data['TOWER Final_Start'] else 'None',
                     ', '.join(data['TOWER Final_End']) if data['TOWER Final_End'] else 'None',
                     ', '.join(map(str, data['TOWER Transcription_id'])) if data['TOWER Transcription_id'] else 'None',
-                    ' | '.join(data['TOWER Transcription Text']) if data['TOWER Transcription Text'] else 'None'
-                    # plot_coordinates(coordinates, flight_numbers, status, center_point, current_flight_time)
+                    ' | '.join(data['TOWER Transcription Text']) if data['TOWER Transcription Text'] else 'None',
+                    plot_coordinates(coordinates, flight_numbers, status, center_point, current_flight_time)
                 ]
 
             previous_transcriptions.update(data)
@@ -819,7 +799,7 @@ def main():
     # Load transcriptions
     transcriptions = load_transcriptions_from_csv(transcription_files)
 
-    csv_file = '/Users/naimbaker/Documents/ATC/aircraft_near_KGSO/aircraft_near_KGSO_2025_09_01.csv'
+    csv_file = '/Users/naimbaker/Documents/ATC/aircraft_near_KGSO/aircraft_near_KGSO_2025_11_01.csv'
     # Load airplanes
     airplanes = load_airplanes_from_csv(csv_file)
 
@@ -827,21 +807,21 @@ def main():
 
     syn_input = input("Would you like to add synthetic ATC data?(Y or N)")
 
-    if syn_input.upper() == "Y":
-        with open(json_file_path, 'r') as file:
-            syn_data = json.load(file)
+    # if syn_input.upper() == "Y":
+    #     with open(json_file_path, 'r') as file:
+    #         syn_data = json.load(file)
 
-        synth_locations = []
+        # synth_locations = []
 
         # print(syn_data)
 
-        for aircraft in syn_data['aircraft']:
-            # print(f"Flight {aircraft['flight']} is at a cruise speed of {aircraft['Cruise Speed(mph)']}mph with an approach speed of {aircraft['Approach Speed(mph)']}mph.")
-            # print(f"{aircraft['flight']} has a descent rate of {aircraft['Descent Rate(ft/min)']}ft/min with a descent initiation distance of {aircraft['Descent Initiation Distance(NM)']}NM.")
-            synth_locations.append(aircraft['Location'])
-            print()
+        # for aircraft in syn_data['aircraft']:
+        #     # print(f"Flight {aircraft['flight']} is at a cruise speed of {aircraft['Cruise Speed(mph)']}mph with an approach speed of {aircraft['Approach Speed(mph)']}mph.")
+        #     # print(f"{aircraft['flight']} has a descent rate of {aircraft['Descent Rate(ft/min)']}ft/min with a descent initiation distance of {aircraft['Descent Initiation Distance(NM)']}NM.")
+        #     synth_locations.append(aircraft['Location'])
+        #     print()
 
-        synth_locations = synth_locations[0]
+        # synth_locations = synth_locations[0]
 
         # print(synth_locations)
 
