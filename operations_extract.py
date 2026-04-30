@@ -1,55 +1,247 @@
-import pandas as pd
+import gzip
+import requests
+import json
+import csv
+from math import radians, sin, cos, sqrt, atan2
 
-input_csv = 'operations_2025_09_01.csv'
-output_csv = 'KGSO_operations_output.csv'
+# =========================
+# CONFIG
+# =========================
+YEAR = 2026
+MONTH = 3
+DAY = 1
+BASE_URL = f"https://samples.adsbexchange.com/readsb-hist/{YEAR:04d}/{MONTH:02d}/{DAY:02d}"
 
-target_airport = 'KGSO'
+# Coordinates of KGSO (Piedmont Triad International Airport)
+KGSO_LAT = 36.09775
+KGSO_LON = -79.9373
 
-# Load CSV
-df = pd.read_csv(input_csv)
+# Output
+# CSV_DIR = "/content/drive/MyDrive/ATC_Transponder_Data/readsb-hist"
+CSV_DIR = "/Users/naimbaker/Documents/ATC/aircraft_near_KGSO"
+CSV_FILENAME = f"{CSV_DIR}/aircraft_near_KGSO_{YEAR:04d}_{MONTH:02d}_{DAY:02d}.csv"
 
-# Clean flight IDs
-df["flight"] = df["flight"].astype(str).str.strip()
+# Distance threshold (NM)
+THRESHOLD_NM = 10.0
 
-# Build mapping dicts
-takeoff_map = (
-    df[df["operation"] == "takeoff"]
-    .drop_duplicates("flight")
-    .set_index("flight")["airport"]
-    .to_dict()
-)
-landing_map = (
-    df[df["operation"] == "landing"]
-    .drop_duplicates("flight")
-    .set_index("flight")["airport"]
-    .to_dict()
-)
+# Strict time bounds (inclusive)
+START_TIME_STR = "000000Z"
+END_TIME_STR   = "235955Z"  # last file for the day
 
-# Create new columns
-df["source"] = df["flight"].map(takeoff_map)
-df["destination"] = df["flight"].map(landing_map)
+# Toggle debug verbosity
+DEBUG = True  # set False to reduce per-line error prints
 
-# Clear irrelevant fields
-df.loc[df["operation"] == "landing", "destination"] = None
-df.loc[df["operation"] == "takeoff", "source"] = None
+# =========================
+# Helpers
+# =========================
+def calculate_distance_nm(lat1, lon1, lat2, lon2):
+    """Haversine distance in nautical miles."""
+    lat1_rad, lon1_rad, lat2_rad, lon2_rad = map(radians, [lat1, lon1, lat2, lon2])
+    R_NM = 3440.065
+    dlon = lon2_rad - lon1_rad
+    dlat = lon2_rad*0 + (lat2_rad - lat1_rad)  # keep structure clear; no-op to emphasize symmetry
+    dlat = lat2_rad - lat1_rad
+    a = sin(dlat / 2) ** 2 + cos(lat1_rad) * cos(lat2_rad) * sin(dlon / 2) ** 2
+    c = 2 * atan2(sqrt(a), sqrt(1 - a))
+    return R_NM * c
 
-# Filter to target airport
-matching_flights = df[df['airport'] == target_airport].copy()
+def in_strict_bounds(timestr: str) -> bool:
+    """Only accept HHMMSSZ within [000000Z, 235955Z]."""
+    return (len(timestr) == 7 and timestr.endswith('Z')
+            and "000000Z" <= timestr <= "235955Z")
 
-# --- Reorder columns so source/destination are right after flight ---
-cols = list(matching_flights.columns)
-flight_index = cols.index("flight")
+def extract_aircraft_objects_from_bytes(blob: bytes):
+    """
+    Accepts the decompressed file content.
+    Supports:
+      1) Single JSON object with key 'aircraft' (list of objs)
+      2) JSON array of aircraft objects
+      3) NDJSON (one JSON object per line)
+    Returns an iterator of dicts (aircraft objects).
+    """
+    text = blob.decode('utf-8', errors='replace').strip()
+    if not text:
+        return []
 
-# Remove if already at the end
-cols.remove("source")
-cols.remove("destination")
+    # Try full JSON first (object or array)
+    try:
+        parsed = json.loads(text)
+        if isinstance(parsed, dict) and "aircraft" in parsed and isinstance(parsed["aircraft"], list):
+            return parsed["aircraft"]
+        if isinstance(parsed, list):
+            return parsed
+        # It might be a single aircraft object
+        if isinstance(parsed, dict) and ("lat" in parsed or "lon" in parsed):
+            return [parsed]
+        # Could be a dict with different nesting; fall back to NDJSON
+    except json.JSONDecodeError:
+        pass  # fall back to NDJSON
 
-# Insert next to flight
-cols[flight_index+1:flight_index+1] = ["source", "destination"]
+    # NDJSON fallback
+    objs = []
+    for line in text.splitlines():
+        line = line.strip()
+        if not line or not (line.startswith('{') and line.endswith('}')):
+            continue
+        try:
+            obj = json.loads(line)
+            objs.append(obj)
+        except json.JSONDecodeError:
+            continue
+    return objs
 
-# Reorder dataframe
-matching_flights = matching_flights[cols]
+# =========================
+# CSV Setup
+# =========================
+csv_header = [
+    "Dist to GSO", "Time", "Hex", "DS Type", "Flight #", "Aircraft_Reg", "Aircraft_Type",
+    "Altitude Baro", "Altitude Geom", "Ground Speed", "Track", "Baro Rate", "Squawk",
+    "Emergency", "Category", "Latitude", "Longitude", "NIC Navigation Integrity Category",
+    "RC Navigation Accuracy Category", "Seen Position", "Version", "NIC Baro", "NAC P",
+    "NAC V", "SIL Source Integrity Level ", "SIL Type", "GVA", "SDA System Design Assurance",
+    "Alert", "SPI", "MLAT", "TISB", "Messages", "Seen", "RSSI"
+]
 
-# Save result
-matching_flights.to_csv(output_csv, index=False)
-print(f"Flights info saved to {output_csv}")
+# For deduping in a single run (time, hex)
+seen_keys = set()
+
+# Totals
+total_urls_attempted   = 0
+total_urls_ok          = 0
+total_rows_written     = 0
+total_skipped_far      = 0
+total_skipped_parse    = 0
+total_skipped_oob_time = 0
+
+print(f"[INFO] Writing to: {CSV_FILENAME}")
+with open(CSV_FILENAME, mode='w', newline='', encoding='utf-8') as f:
+    writer = csv.writer(f)
+    writer.writerow(csv_header)
+
+    expected_urls = 24 * 60 * (60 // 5)  # 17280
+    processed_urls = 0
+
+    # Iterate only within 00:00:00Z .. 23:59:55Z (5s steps)
+    for hour in range(0, 24):
+        for minute in range(0, 60):
+            for second in range(0, 60, 5):
+                processed_urls += 1
+                time_str = f"{hour:02}{minute:02}{second:02}Z"
+
+                if not in_strict_bounds(time_str):
+                    total_skipped_oob_time += 1
+                    continue
+
+                url = f"{BASE_URL}/{time_str}.json.gz"
+                total_urls_attempted += 1
+
+                lines_read = 0
+                lines_near = 0
+                lines_written = 0
+
+                try:
+                    resp = requests.get(url, stream=True, timeout=30)
+                    if resp.status_code != 200:
+                        if DEBUG:
+                            print(f"[WARN] {time_str}: HTTP {resp.status_code}, skipping. Progress {processed_urls}/{expected_urls}")
+                        continue
+
+                    total_urls_ok += 1
+                    if DEBUG:
+                        print(f"[INFO] {time_str}: fetching {url} ... Progress {processed_urls}/{expected_urls}")
+
+                    # Read entire gz content (format differs across days; safer to parse once)
+                    with gzip.GzipFile(fileobj=resp.raw) as gz:
+                        blob = gz.read()
+
+                    aircraft_list = extract_aircraft_objects_from_bytes(blob)
+                    lines_read = len(aircraft_list)
+
+                    for obj in aircraft_list:
+                        try:
+                            # lat/lon present?
+                            lat = obj.get('lat')
+                            lon = obj.get('lon')
+                            if lat is None or lon is None:
+                                continue
+
+                            # Distance filter
+                            dist_nm = calculate_distance_nm(lat, lon, KGSO_LAT, KGSO_LON)
+                            if dist_nm > THRESHOLD_NM:
+                                total_skipped_far += 1
+                                continue
+                            lines_near += 1
+
+                            # Dedup key
+                            hex_id = obj.get('hex', '')
+                            dedup_key = (time_str, hex_id)
+                            if dedup_key in seen_keys:
+                                continue
+                            seen_keys.add(dedup_key)
+
+                            # Map fields
+                            row = [
+                                f"{dist_nm:.3f}",
+                                time_str,
+                                hex_id,
+                                obj.get('type', ''),
+                                obj.get('flight', ''),
+                                obj.get('r', ''),       # registration
+                                obj.get('t', ''),       # aircraft type
+                                obj.get('alt_baro', ''),
+                                obj.get('alt_geom', ''),
+                                obj.get('gs', ''),
+                                obj.get('track', ''),
+                                obj.get('baro_rate', ''),
+                                obj.get('squawk', ''),
+                                obj.get('emergency', ''),
+                                obj.get('category', ''),
+                                lat,
+                                lon,
+                                obj.get('nic', ''),
+                                obj.get('rc', ''),
+                                obj.get('seen_pos', ''),
+                                obj.get('version', ''),
+                                obj.get('nic_baro', ''),
+                                obj.get('nac_p', ''),
+                                obj.get('nac_v', ''),
+                                obj.get('sil', ''),
+                                obj.get('sil_type', ''),
+                                obj.get('gva', ''),
+                                obj.get('sda', ''),
+                                obj.get('alert', ''),
+                                obj.get('spi', ''),
+                                obj.get('mlat', ''),
+                                obj.get('tisb', ''),
+                                obj.get('messages', ''),
+                                obj.get('seen', ''),
+                                obj.get('rssi', ''),
+                            ]
+
+                            writer.writerow(row)
+                            lines_written += 1
+                            total_rows_written += 1
+
+                        except Exception as e:
+                            total_skipped_parse += 1
+                            if DEBUG:
+                                print(f"[ERROR] {time_str}: aircraft parse error: {e}")
+
+                    print(f"[FILTER] {time_str[:2]}:{time_str[2:4]}:{time_str[4:6]}Z | read: {lines_read} | near_kgso: {lines_near} | written: {lines_written} | URL: {url}")
+
+                except requests.exceptions.RequestException as e:
+                    print(f"[ERROR] {time_str}: request failed: {e} | URL: {url}")
+                except Exception as e:
+                    print(f"[ERROR] {time_str}: unexpected error: {e} | URL: {url}")
+
+print("======================================")
+print("[SUMMARY]")
+print(f" Date: {YEAR:04d}-{MONTH:02d}-{DAY:02d}")
+print(f" Output CSV: {CSV_FILENAME}")
+print(f" Total timestamp URLs attempted: {total_urls_attempted}")
+print(f" HTTP-OK timestamp URLs: {total_urls_ok}")
+print(f" Total rows written: {total_rows_written}")
+print(f" Skipped (out-of-bounds times): {total_skipped_oob_time}")
+print(f" Skipped (farther than {THRESHOLD_NM} NM): {total_skipped_far}")
+print(f" Skipped (parse errors / non-JSON items): {total_skipped_parse}")
+print(" Done.")
