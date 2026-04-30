@@ -508,22 +508,6 @@ def plot_coordinates(coordinates, flight_numbers, status, center, current_flight
         imagebox = OffsetImage(rotated_airplane, zoom=0.05)
         ab = AnnotationBbox(imagebox, (row.geometry.x, row.geometry.y), frameon=False)
         ax.add_artist(ab)
-
-    # synth_x, synth_y = gdf2.geometry.x.iloc[0], gdf2.geometry.y.iloc[0]
-
-    # if current_point != 0:
-    #     synth_angle = convert_direction(get_traveled_distance(synth_locations[current_point - 1], synth_locations[current_point])) + 180
-    #     print("CURRENT SYNTHETIC COORDS:" , [synth_locations[current_point - 1], synth_locations[current_point]])
-    #     print("CURRENT SYNTHETIC ANGLE:" , synth_angle)
-    # else:
-    #     synth_angle = 180
-    
-    # rotated_synth_airplane = rotate(synth_airplane_icon, synth_angle, reshape=True)
-
-    # synth_imagebox = OffsetImage(rotated_synth_airplane, zoom=0.05)
-    # synth_ab = AnnotationBbox(synth_imagebox, (synth_x, synth_y), frameon=False)
-
-    # ax.add_artist(synth_ab)
     
     ax.set_xlabel('Longitude')
     ax.set_ylabel('Latitude')
@@ -694,17 +678,17 @@ def write_snapshot_to_csv(airplanes, filename, output_path, transcriptions, inte
                 current_flight_time = data['DT Time']
                 center_point = (36.1029, -79.9335)  # Greensboro Airport
 
-                # json_file_path = 'synthetic.json'
+                json_file_path = 'synthetic.json'
 
-                # with open(json_file_path, 'r') as file:
-                #     syn_data = json.load(file)
+                with open(json_file_path, 'r') as file:
+                    syn_data = json.load(file)
 
                 synth_locations = []
 
-                # for aircraft in syn_data['aircraft']:
-                #     synth_locations.append(aircraft['Location'])
+                for aircraft in syn_data['aircraft']:
+                    synth_locations.append(aircraft['Location'])
 
-                # synth_locations = synth_locations[0] # Synthetic planes
+                synth_locations = synth_locations[0] # Synthetic planes
 
                 op_file_path = 'KGSO_operations_output.csv'
 
@@ -777,8 +761,8 @@ def write_snapshot_to_csv(airplanes, filename, output_path, transcriptions, inte
                     ', '.join(data['TOWER Final_Start']) if data['TOWER Final_Start'] else 'None',
                     ', '.join(data['TOWER Final_End']) if data['TOWER Final_End'] else 'None',
                     ', '.join(map(str, data['TOWER Transcription_id'])) if data['TOWER Transcription_id'] else 'None',
-                    ' | '.join(data['TOWER Transcription Text']) if data['TOWER Transcription Text'] else 'None',
-                    plot_coordinates(coordinates, flight_numbers, status, center_point, current_flight_time)
+                    ' | '.join(data['TOWER Transcription Text']) if data['TOWER Transcription Text'] else 'None'
+                    # plot_coordinates(coordinates, flight_numbers, status, center_point, current_flight_time)
                 ]
 
             previous_transcriptions.update(data)
@@ -799,7 +783,7 @@ def main():
     # Load transcriptions
     transcriptions = load_transcriptions_from_csv(transcription_files)
 
-    csv_file = '/Users/naimbaker/Documents/ATC/aircraft_near_KGSO/aircraft_near_KGSO_2025_11_01.csv'
+    csv_file = '/Users/naimbaker/Documents/ATC/aircraft_near_KGSO/aircraft_near_KGSO_2026_03_01.csv'
     # Load airplanes
     airplanes = load_airplanes_from_csv(csv_file)
 
