@@ -74,7 +74,7 @@ Part of the DT csv file creation also involves the operational flight data that 
 
 3. Next, run the code. It will output a file called "KGSO_operations_output.csv".
   
-4.  Once you have this file in your working directory, you will be ready to use it in your "ATC_SIM_v_main_final.ipynb" code.
+4.  Once you have this file in your working directory, you will be ready to use it in your "ATC_SIM_v_main.py" code.
 
 # Step 4: Generation of DT Visualization and CSV Data
 
