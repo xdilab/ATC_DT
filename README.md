@@ -64,7 +64,19 @@ In order to create your DT csv file, you will need to first create an ADSB csv f
 
 These steps will help you create the ADSB data csv similar to the format of the "adsb_hist_06_01_24_cleaned.csv" shown in this repo.
 
-# Step 3: Generation of DT Visualization and CSV Data
+# Step 3: Generation of Operations Data
+
+Part of the DT csv file creation also involves the operational flight data that you will need to extract. you will need to need create an operations csv file to extract data from.
+
+1. Navigate to the following link and select the date you wish to extract your data for: https://samples.adsbexchange.com/index.html#operations-ax-v2. The csv should look like: operations.csv.gz
+
+2. Once this is downloaded, you will need to put this file in your working ATC_DT directory. After doing this, in the operations_extract.py python file, make sure the "input_csv" variable at the top of the file matches the file name you have just downloaded.
+
+3. Next, run the code. It will output a file called "KGSO_operations_output.csv".
+  
+4.  Once you have this file in your working directory, you will be ready to use it in your "ATC_SIM_v_main_final.ipynb" code.
+
+# Step 4: Generation of DT Visualization and CSV Data
 
 Once you have the ADSB data csv, you can move on to generating the aircraft visualization and DT CSV data.
 
